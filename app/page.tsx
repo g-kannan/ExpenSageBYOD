@@ -2,6 +2,7 @@
 
 import { MotherDuckClientProvider, useMotherDuckClientState } from "@/lib/motherduck/context/motherduckClientContext";
 import { useCallback, useState, useEffect } from "react";
+import { DatabaseSetup } from "./components/DatabaseSetup";
 
 const SQL_QUERY_STRING = `
 SELECT 
@@ -520,11 +521,16 @@ function ExpensesTable() {
                     type="password"
                     id="token"
                     value={tokenInput}
-                    onChange={(e) => setTokenInput(e.target.value)}
+                    onChange={(e) => {
+                        setTokenInput(e.target.value);
+                        setToken(e.target.value);
+                    }}
                     className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 text-gray-900"
                     placeholder="Enter your MotherDuck token"
                 />
             </div>
+
+            <DatabaseSetup tokenInput={tokenInput} />
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-white rounded-xl shadow-lg p-6">
@@ -700,7 +706,7 @@ function ExpensesTable() {
 export default function Home() {
     return (
         <main className="min-h-screen bg-gray-50">
-            <MotherDuckClientProvider database="expensage_backend">
+            <MotherDuckClientProvider database="my_db">
                 <ExpensesTable />
             </MotherDuckClientProvider>
         </main>
