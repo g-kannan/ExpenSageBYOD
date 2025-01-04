@@ -24,6 +24,8 @@ interface ExpenseFormData {
     category: string;
     biller: string;
     amount: number;
+    recurring: boolean;
+    frequency: 'Monthly' | 'Quarterly' | 'Fortnightly' | 'Half Yearly' | '';
 }
 
 const useFetchExpensesData = () => {
@@ -87,8 +89,10 @@ function ExpenseInputForm({ onExpenseAdded }: { onExpenseAdded: () => void }) {
     const [formData, setFormData] = useState<ExpenseFormData>({
         ef_month: new Date().getMonth() + 1,
         category: '',
-        biller: '',
-        amount: 0
+        biller: 'NA',
+        amount: 0,
+        recurring: false,
+        frequency: ''
     });
     const [customCategory, setCustomCategory] = useState('');
     const [showCustomCategory, setShowCustomCategory] = useState(false);
@@ -104,6 +108,13 @@ function ExpenseInputForm({ onExpenseAdded }: { onExpenseAdded: () => void }) {
         'Phone',
         'Other',
         'Custom'
+    ];
+
+    const frequencies = [
+        'Monthly',
+        'Quarterly',
+        'Fortnightly',
+        'Half Yearly'
     ];
 
     const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -133,29 +144,73 @@ function ExpenseInputForm({ onExpenseAdded }: { onExpenseAdded: () => void }) {
             setLoading(true);
             setError(null);
             
-            // Create and execute the query with interpolated values
-            const interpolatedQuery = INSERT_EXPENSE_QUERY
-                .replace('$ef_month', formData.ef_month.toString())
-                .replace('$category', formData.category.replace(/'/g, "''"))  // Escape single quotes
-                .replace('$biller', formData.biller.replace(/'/g, "''"))      // Escape single quotes
-                .replace('$amount', formData.amount.toString());
+            if (formData.recurring && formData.frequency) {
+                // Handle recurring expenses
+                const startMonth = formData.ef_month;
+                const queries: string[] = [];
 
-            console.log('Executing query:', interpolatedQuery);
-            const result = await safeEvaluateQuery(interpolatedQuery);
+                const generateMonths = (increment: number, count: number, divideAmount: number = 1) => {
+                    for (let i = 0; i < count; i += increment) {
+                        const month = ((startMonth - 1 + i) % 12) + 1;
+                        const interpolatedQuery = INSERT_EXPENSE_QUERY
+                            .replace('$ef_month', month.toString())
+                            .replace('$category', formData.category.replace(/'/g, "''"))
+                            .replace('$biller', formData.biller.replace(/'/g, "''"))
+                            .replace('$amount', (formData.amount / divideAmount).toString());
+                        queries.push(interpolatedQuery);
+                    }
+                };
 
-            if (result.status === "success") {
-                setFormData({
-                    ef_month: new Date().getMonth() + 1,
-                    category: '',
-                    biller: '',
-                    amount: 0
-                });
-                setCustomCategory('');
-                setShowCustomCategory(false);
-                onExpenseAdded();
+                switch (formData.frequency) {
+                    case 'Monthly':
+                        generateMonths(1, 12);
+                        break;
+                    case 'Quarterly':
+                        generateMonths(3, 12);
+                        break;
+                    case 'Fortnightly':
+                        generateMonths(1, 12, 2); // Split amount in half
+                        break;
+                    case 'Half Yearly':
+                        generateMonths(6, 12);
+                        break;
+                }
+
+                // Execute all queries in sequence
+                for (const query of queries) {
+                    console.log('Executing recurring query:', query);
+                    const result = await safeEvaluateQuery(query);
+                    if (result.status !== "success") {
+                        throw new Error('Failed to insert recurring expense');
+                    }
+                }
             } else {
-                throw new Error(result.err.message);
+                // Handle single expense
+                const interpolatedQuery = INSERT_EXPENSE_QUERY
+                    .replace('$ef_month', formData.ef_month.toString())
+                    .replace('$category', formData.category.replace(/'/g, "''"))
+                    .replace('$biller', formData.biller.replace(/'/g, "''"))
+                    .replace('$amount', formData.amount.toString());
+
+                console.log('Executing query:', interpolatedQuery);
+                const result = await safeEvaluateQuery(interpolatedQuery);
+                
+                if (result.status !== "success") {
+                    throw new Error('Failed to insert expense');
+                }
             }
+
+            setFormData({
+                ef_month: new Date().getMonth() + 1,
+                category: '',
+                biller: 'NA',
+                amount: 0,
+                recurring: false,
+                frequency: ''
+            });
+            setCustomCategory('');
+            setShowCustomCategory(false);
+            onExpenseAdded();
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             console.error('Error in handleSubmit:', errorMessage);
@@ -219,17 +274,16 @@ function ExpenseInputForm({ onExpenseAdded }: { onExpenseAdded: () => void }) {
                         </div>
                     )}
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Biller
+                    <div className="mb-4">
+                        <label className="block text-gray-700 text-sm font-bold mb-2">
+                            Biller (Optional)
                         </label>
                         <input
                             type="text"
                             value={formData.biller}
-                            onChange={(e) => setFormData(prev => ({ ...prev, biller: e.target.value }))}
-                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
-                            placeholder="Enter biller name"
-                            required
+                            onChange={(e) => setFormData(prev => ({ ...prev, biller: e.target.value || 'NA' }))}
+                            placeholder="Enter biller name or leave as NA"
+                            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
                         />
                     </div>
 
@@ -248,6 +302,36 @@ function ExpenseInputForm({ onExpenseAdded }: { onExpenseAdded: () => void }) {
                             required
                         />
                     </div>
+
+                    <div className="mb-4">
+                        <label className="block text-gray-700 text-sm font-bold mb-2">
+                            Recurring Expense
+                        </label>
+                        <input
+                            type="checkbox"
+                            checked={formData.recurring}
+                            onChange={(e) => setFormData(prev => ({ ...prev, recurring: e.target.checked }))}
+                            className="mr-2"
+                        />
+                    </div>
+
+                    {formData.recurring && (
+                        <div className="mb-4">
+                            <label className="block text-gray-700 text-sm font-bold mb-2">
+                                Frequency
+                            </label>
+                            <select
+                                value={formData.frequency}
+                                onChange={(e) => setFormData(prev => ({ ...prev, frequency: e.target.value as ExpenseFormData['frequency'] }))}
+                                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                            >
+                                <option value="">Select Frequency</option>
+                                {frequencies.map(freq => (
+                                    <option key={freq} value={freq}>{freq}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
                 </div>
 
                 {error && (
