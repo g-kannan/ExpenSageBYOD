@@ -17,7 +17,7 @@ INSERT INTO expensage_backend.expenses_forecast (ef_month, category, biller, amo
 VALUES (?, ?, ?, ?, 'INR', current_timestamp, current_timestamp);`;
 
 interface ExpenseFormData {
-    ef_month: string;
+    ef_month: number;
     category: string;
     biller: string;
     amount: number;
@@ -60,7 +60,7 @@ function ExpenseInputForm({ onExpenseAdded }: { onExpenseAdded: () => void }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [formData, setFormData] = useState<ExpenseFormData>({
-        ef_month: new Date().toISOString().slice(0, 7),
+        ef_month: new Date().getMonth() + 1,
         category: '',
         biller: '',
         amount: 0
@@ -135,7 +135,7 @@ function ExpenseInputForm({ onExpenseAdded }: { onExpenseAdded: () => void }) {
             
             if (result.status === "success") {
                 setFormData({
-                    ef_month: new Date().toISOString().slice(0, 7),
+                    ef_month: new Date().getMonth() + 1,
                     category: '',
                     biller: '',
                     amount: 0
@@ -155,6 +155,7 @@ function ExpenseInputForm({ onExpenseAdded }: { onExpenseAdded: () => void }) {
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({
+
             ...prev,
             [name]: name === 'amount' ? parseFloat(value) || 0 : value
         }));
@@ -169,14 +170,17 @@ function ExpenseInputForm({ onExpenseAdded }: { onExpenseAdded: () => void }) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Month</label>
-                        <input
-                            type="month"
+                        <select
                             name="ef_month"
                             value={formData.ef_month}
                             onChange={handleInputChange}
                             className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 text-gray-900"
                             required
-                        />
+                        >
+                            {[...Array(12).keys()].map(i => (
+                                <option key={i + 1} value={i + 1}>{i + 1}</option>
+                            ))}
+                        </select>
                     </div>
                     <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Category</label>
