@@ -1,7 +1,6 @@
 "use client"
 
 import { MotherDuckClientProvider, useMotherDuckClientState } from "@/lib/motherduck/context/motherduckClientContext";
-import HintComponent from "./components/hint";
 import { useCallback, useState, useEffect } from "react";
 
 const SQL_QUERY_STRING = `
@@ -335,7 +334,7 @@ function ExpenseInputForm({ onExpenseAdded }: { onExpenseAdded: () => void }) {
                 </div>
 
                 {error && (
-                    <div className="text-red-600 text-sm mt-2 p-2 bg-red-50 rounded-lg border border-red-200">
+                    <div className="text-red-500 text-sm mt-2">
                         {error}
                     </div>
                 )}
@@ -343,8 +342,8 @@ function ExpenseInputForm({ onExpenseAdded }: { onExpenseAdded: () => void }) {
                 <div className="flex justify-end mt-4">
                     <button
                         type="submit"
+                        className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
                         disabled={loading}
-                        className="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {loading ? 'Adding...' : 'Add Expense'}
                     </button>
@@ -469,63 +468,69 @@ function ExpensesTable() {
             )}
             
             <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-                {expensesData.length > 0 && (
+                {loading ? (
+                    <div className="text-center py-4">Loading...</div>
+                ) : displayError ? (
+                    <div className="text-red-500 text-center py-4">{displayError}</div>
+                ) : (
                     <div className="overflow-x-auto">
-                        <table className="min-w-full">
-                            <thead>
-                                <tr className="bg-blue-600 text-white">
-                                    <th onClick={() => sortData('ef_month')} 
-                                        className="px-6 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-blue-700 border-b border-blue-500">
-                                        Month {getSortIcon('ef_month')}
-                                    </th>
-                                    <th onClick={() => sortData('category')}
-                                        className="px-6 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-blue-700 border-b border-blue-500">
-                                        Category {getSortIcon('category')}
-                                    </th>
-                                    <th onClick={() => sortData('biller')}
-                                        className="px-6 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-blue-700 border-b border-blue-500">
-                                        Biller {getSortIcon('biller')}
-                                    </th>
-                                    <th onClick={() => sortData('amount')}
-                                        className="px-6 py-3 text-right text-sm font-semibold cursor-pointer hover:bg-blue-700 border-b border-blue-500">
-                                        Amount {getSortIcon('amount')}
-                                    </th>
-                                    <th onClick={() => sortData('currency')}
-                                        className="px-6 py-3 text-center text-sm font-semibold cursor-pointer hover:bg-blue-700 border-b border-blue-500">
-                                        Currency {getSortIcon('currency')}
-                                    </th>
-                                    <th onClick={() => sortData('created_ts')}
-                                        className="px-6 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-blue-700 border-b border-blue-500">
-                                        Created At {getSortIcon('created_ts')}
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200">
-                                {expensesData.map((item, index) => (
-                                    <tr key={index} 
-                                        className={`${index % 2 === 0 ? 'bg-white' : 'bg-blue-50'} hover:bg-blue-100 transition-colors duration-150`}>
-                                        <td className="px-6 py-4 text-gray-900">
-                                            {getMonthName(item.ef_month)}
-                                        </td>
-                                        <td className="px-6 py-4 text-gray-900">
-                                            {item.category}
-                                        </td>
-                                        <td className="px-6 py-4 text-gray-900">
-                                            {item.biller}
-                                        </td>
-                                        <td className="px-6 py-4 text-right text-gray-900 font-medium">
-                                            {formatAmount(item.amount)}
-                                        </td>
-                                        <td className="px-6 py-4 text-center text-gray-900">
-                                            {item.currency}
-                                        </td>
-                                        <td className="px-6 py-4 text-gray-900">
-                                            {formatTimestamp(item.created_ts)}
-                                        </td>
+                        <div className="max-h-[600px] overflow-y-auto">
+                            <table className="min-w-full bg-white">
+                                <thead className="sticky top-0 bg-blue-600 text-white">
+                                    <tr>
+                                        <th onClick={() => sortData('ef_month')} 
+                                            className="px-6 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-blue-700 border-b border-blue-500">
+                                            Month {getSortIcon('ef_month')}
+                                        </th>
+                                        <th onClick={() => sortData('category')}
+                                            className="px-6 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-blue-700 border-b border-blue-500">
+                                            Category {getSortIcon('category')}
+                                        </th>
+                                        <th onClick={() => sortData('biller')}
+                                            className="px-6 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-blue-700 border-b border-blue-500">
+                                            Biller {getSortIcon('biller')}
+                                        </th>
+                                        <th onClick={() => sortData('amount')}
+                                            className="px-6 py-3 text-right text-sm font-semibold cursor-pointer hover:bg-blue-700 border-b border-blue-500">
+                                            Amount {getSortIcon('amount')}
+                                        </th>
+                                        <th onClick={() => sortData('currency')}
+                                            className="px-6 py-3 text-center text-sm font-semibold cursor-pointer hover:bg-blue-700 border-b border-blue-500">
+                                            Currency {getSortIcon('currency')}
+                                        </th>
+                                        <th onClick={() => sortData('created_ts')}
+                                            className="px-6 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-blue-700 border-b border-blue-500">
+                                            Created At {getSortIcon('created_ts')}
+                                        </th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200">
+                                    {expensesData.map((item, index) => (
+                                        <tr key={index} 
+                                            className={`${index % 2 === 0 ? 'bg-white' : 'bg-blue-50'} hover:bg-blue-100 transition-colors duration-150`}>
+                                            <td className="px-6 py-4 text-gray-900">
+                                                {getMonthName(item.ef_month)}
+                                            </td>
+                                            <td className="px-6 py-4 text-gray-900">
+                                                {item.category}
+                                            </td>
+                                            <td className="px-6 py-4 text-gray-900">
+                                                {item.biller}
+                                            </td>
+                                            <td className="px-6 py-4 text-right text-gray-900 font-medium">
+                                                {formatAmount(item.amount)}
+                                            </td>
+                                            <td className="px-6 py-4 text-center text-gray-900">
+                                                {item.currency}
+                                            </td>
+                                            <td className="px-6 py-4 text-gray-900">
+                                                {formatTimestamp(item.created_ts)}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 )}
             </div>
@@ -538,7 +543,6 @@ export default function Home() {
         <main className="min-h-screen bg-gray-50">
             <MotherDuckClientProvider database="expensage_backend">
                 <ExpensesTable />
-                <HintComponent />
             </MotherDuckClientProvider>
         </main>
     );
