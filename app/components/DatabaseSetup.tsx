@@ -58,8 +58,8 @@ export function DatabaseSetup({ tokenInput }: DatabaseSetupProps) {
                 console.log('Table status:', status);
                 setObjectsExist(status === 'TRUE');
             } else {
-                console.error('Query failed:', result.err);
-                throw new Error(result.err?.message || 'Failed to check database status');
+                console.error('Query failed:', result);
+                throw new Error('Failed to check database status');
             }
         } catch (err) {
             console.error('Error checking objects:', err);
