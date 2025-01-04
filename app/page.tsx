@@ -14,6 +14,12 @@ SELECT
 FROM expensage_backend.expenses_forecast
 ORDER BY ef_month;`;
 
+const SUMMARY_QUERY_STRING = `
+SELECT ef_month as month, SUM(amount) as total 
+FROM expensage_backend.expenses_forecast
+GROUP BY ef_month
+ORDER BY total DESC;`;
+
 const INSERT_EXPENSE_QUERY = `
 INSERT INTO expensage_backend.expenses_forecast (ef_month, category, biller, amount, currency, created_ts, updated_ts)
 VALUES ($ef_month, '$category', '$biller', $amount, 'INR', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);`;
@@ -33,30 +39,33 @@ const useFetchExpensesData = () => {
 
     const fetchExpensesData = useCallback(async () => {
         try {
-            console.log('Executing query:', SQL_QUERY_STRING);
-            const safeResult = await safeEvaluateQuery(SQL_QUERY_STRING);
-            console.log('Query result:', safeResult);
-            
-            if (safeResult.status === "success") {
-                setError(null);
-                const rows = safeResult.result.data.toRows();
-                console.log('Parsed rows:', rows);
-                return rows;
-            } else {
-                const errorMsg = `Query failed: ${safeResult.err.message}`;
-                console.error(errorMsg);
-                setError(errorMsg);
-                return [];
+            const result = await safeEvaluateQuery(SQL_QUERY_STRING);
+            if (result.status !== "success") {
+                throw new Error(result.err.message);
             }
-        } catch (error) {
-            const errorMsg = "fetchExpensesData failed with error: " + (error instanceof Error ? error.message : String(error));
-            console.error(errorMsg);
-            setError(errorMsg);
+            return result.result.data.toRows() || [];
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            setError(`Failed to fetch data: ${errorMessage}`);
             return [];
         }
     }, [safeEvaluateQuery]);
 
-    return { fetchExpensesData, error };
+    const fetchSummaryData = useCallback(async () => {
+        try {
+            const result = await safeEvaluateQuery(SUMMARY_QUERY_STRING);
+            if (result.status !== "success") {
+                throw new Error(result.err.message);
+            }
+            return result.result.data.toRows() || [];
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            setError(`Failed to fetch summary data: ${errorMessage}`);
+            return [];
+        }
+    }, [safeEvaluateQuery]);
+
+    return { fetchExpensesData, fetchSummaryData, error };
 }
 
 const getMonthName = (monthNumber: number): string => {
@@ -359,13 +368,15 @@ interface SortConfig {
 }
 
 function ExpensesTable() {
-    const { fetchExpensesData, error: fetchError } = useFetchExpensesData();
+    const { fetchExpensesData, fetchSummaryData, error: fetchError } = useFetchExpensesData();
     const { setToken } = useMotherDuckClientState();
     const [expensesData, setExpensesData] = useState<any[]>([]);
+    const [summaryData, setSummaryData] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [tokenInput, setTokenInput] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'ef_month', direction: 'ascending' });
+    const [activeView, setActiveView] = useState<'table' | 'summary'>('table');
 
     const handleFetchExpensesData = async () => {
         if (!tokenInput) {
@@ -377,20 +388,30 @@ function ExpensesTable() {
             setError(null);
             setToken(tokenInput);
             await new Promise(resolve => setTimeout(resolve, 1000));
-            const result = await fetchExpensesData();
-            if (!result) {
-                throw new Error('No result returned from query');
-            }
-            if (Array.isArray(result) && result.length === 0) {
+            
+            // Fetch both regular and summary data
+            const [regularData, summaryData] = await Promise.all([
+                fetchExpensesData(),
+                fetchSummaryData()
+            ]);
+
+            console.log('Regular Data:', regularData);
+            console.log('Summary Data:', summaryData);
+
+            setExpensesData(regularData || []);
+            setSummaryData(summaryData || []);
+
+            if ((!regularData || regularData.length === 0) && (!summaryData || summaryData.length === 0)) {
                 setError('No data returned from the query. Please check if the table exists and has data.');
             } else {
-                setExpensesData(result);
+                setError(null);
             }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
             console.error('Error in handleFetchExpensesData:', errorMessage);
             setError(`Failed to fetch data: ${errorMessage}`);
             setExpensesData([]);
+            setSummaryData([]);
         } finally {
             setLoading(false);
         }
@@ -468,10 +489,61 @@ function ExpensesTable() {
             )}
             
             <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+                <div className="border-b border-gray-200">
+                    <nav className="flex">
+                        <button
+                            onClick={() => setActiveView('table')}
+                            className={`px-4 py-2 text-sm font-medium ${
+                                activeView === 'table'
+                                    ? 'border-b-2 border-blue-500 text-blue-600'
+                                    : 'text-gray-500 hover:text-gray-700'
+                            }`}
+                        >
+                            Table View
+                        </button>
+                        <button
+                            onClick={() => setActiveView('summary')}
+                            className={`px-4 py-2 text-sm font-medium ${
+                                activeView === 'summary'
+                                    ? 'border-b-2 border-blue-500 text-blue-600'
+                                    : 'text-gray-500 hover:text-gray-700'
+                            }`}
+                        >
+                            Monthly Summary
+                        </button>
+                    </nav>
+                </div>
+
                 {loading ? (
                     <div className="text-center py-4">Loading...</div>
                 ) : displayError ? (
                     <div className="text-red-500 text-center py-4">{displayError}</div>
+                ) : activeView === 'summary' ? (
+                    <div className="overflow-x-auto">
+                        <div className="max-h-[600px] overflow-y-auto">
+                            <table className="min-w-full bg-white">
+                                <thead className="sticky top-0 bg-blue-600 text-white">
+                                    <tr>
+                                        <th className="px-6 py-3 text-left text-sm font-semibold">Month</th>
+                                        <th className="px-6 py-3 text-right text-sm font-semibold">Total Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200">
+                                    {summaryData.map((item, index) => (
+                                        <tr key={index} 
+                                            className={`${index % 2 === 0 ? 'bg-white' : 'bg-blue-50'} hover:bg-blue-100 transition-colors duration-150`}>
+                                            <td className="px-6 py-4 text-gray-900">
+                                                {getMonthName(item.month)}
+                                            </td>
+                                            <td className="px-6 py-4 text-right text-gray-900 font-medium">
+                                                {formatAmount(item.total)}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 ) : (
                     <div className="overflow-x-auto">
                         <div className="max-h-[600px] overflow-y-auto">
