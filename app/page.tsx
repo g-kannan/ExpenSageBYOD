@@ -8,7 +8,10 @@ const SQL_QUERY_STRING = `
 SELECT 
     ef_month,
     category,
-    biller 
+    biller,
+    amount,
+    currency,
+    created_ts
 FROM expensage_backend.expenses_forecast
 ORDER BY ef_month;`;
 
@@ -54,6 +57,28 @@ const useFetchExpensesData = () => {
 
     return { fetchExpensesData, error };
 }
+
+const getMonthName = (monthNumber: number): string => {
+    const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+    return months[(monthNumber - 1) % 12];
+};
+
+const formatAmount = (amount: number): string => {
+    return new Intl.NumberFormat('en-IN', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).format(amount);
+};
+
+const formatTimestamp = (timestamp: string): string => {
+    return new Date(timestamp).toLocaleString('en-IN', {
+        year: 'numeric',
+        month: 'short',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+};
 
 function ExpenseInputForm({ onExpenseAdded }: { onExpenseAdded: () => void }) {
     const { safeEvaluateQuery } = useMotherDuckClientState();
@@ -178,7 +203,7 @@ function ExpenseInputForm({ onExpenseAdded }: { onExpenseAdded: () => void }) {
                             required
                         >
                             {[...Array(12).keys()].map(i => (
-                                <option key={i + 1} value={i + 1}>{i + 1}</option>
+                                <option key={i + 1} value={i + 1}>{getMonthName(i + 1)}</option>
                             ))}
                         </select>
                     </div>
@@ -241,6 +266,11 @@ function ExpenseInputForm({ onExpenseAdded }: { onExpenseAdded: () => void }) {
     );
 }
 
+interface SortConfig {
+    key: string;
+    direction: 'ascending' | 'descending';
+}
+
 function ExpensesTable() {
     const { fetchExpensesData, error: fetchError } = useFetchExpensesData();
     const { setToken } = useMotherDuckClientState();
@@ -248,6 +278,7 @@ function ExpensesTable() {
     const [loading, setLoading] = useState(false);
     const [tokenInput, setTokenInput] = useState('');
     const [error, setError] = useState<string | null>(null);
+    const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'ef_month', direction: 'ascending' });
 
     const handleFetchExpensesData = async () => {
         if (!tokenInput) {
@@ -278,10 +309,47 @@ function ExpensesTable() {
         }
     };
 
+    const sortData = (key: string) => {
+        let direction: 'ascending' | 'descending' = 'ascending';
+        if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+            direction = 'descending';
+        }
+        setSortConfig({ key, direction });
+
+        const sortedData = [...expensesData].sort((a, b) => {
+            if (key === 'amount') {
+                return direction === 'ascending' ? a[key] - b[key] : b[key] - a[key];
+            }
+            if (key === 'created_ts') {
+                return direction === 'ascending' 
+                    ? new Date(a[key]).getTime() - new Date(b[key]).getTime()
+                    : new Date(b[key]).getTime() - new Date(a[key]).getTime();
+            }
+            if (direction === 'ascending') {
+                return a[key] > b[key] ? 1 : -1;
+            }
+            return a[key] < b[key] ? 1 : -1;
+        });
+        setExpensesData(sortedData);
+    };
+
+    const getSortIcon = (key: string) => {
+        if (sortConfig.key !== key) return '↕️';
+        return sortConfig.direction === 'ascending' ? '↑' : '↓';
+    };
+
     const displayError = error || fetchError;
 
     return (
         <div className="max-w-6xl mx-auto p-6 space-y-8">
+            <div className="flex justify-center mb-8">
+                <img 
+                    src="/ExpenSage_logo.png" 
+                    alt="ExpenSage Logo" 
+                    className="h-24 w-auto"
+                />
+            </div>
+            
             <div className="bg-white rounded-xl shadow-lg p-6">
                 <label htmlFor="token" className="block text-sm font-semibold text-gray-700 mb-2">MotherDuck Token</label>
                 <input
@@ -315,26 +383,57 @@ function ExpensesTable() {
             <div className="bg-white rounded-xl shadow-lg overflow-hidden">
                 {expensesData.length > 0 && (
                     <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    {Object.keys(expensesData[0]).map((key) => (
-                                        <th key={key} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            {key}
-                                        </th>
-                                    ))}
+                        <table className="min-w-full">
+                            <thead>
+                                <tr className="bg-blue-600 text-white">
+                                    <th onClick={() => sortData('ef_month')} 
+                                        className="px-6 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-blue-700 border-b border-blue-500">
+                                        Month {getSortIcon('ef_month')}
+                                    </th>
+                                    <th onClick={() => sortData('category')}
+                                        className="px-6 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-blue-700 border-b border-blue-500">
+                                        Category {getSortIcon('category')}
+                                    </th>
+                                    <th onClick={() => sortData('biller')}
+                                        className="px-6 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-blue-700 border-b border-blue-500">
+                                        Biller {getSortIcon('biller')}
+                                    </th>
+                                    <th onClick={() => sortData('amount')}
+                                        className="px-6 py-3 text-right text-sm font-semibold cursor-pointer hover:bg-blue-700 border-b border-blue-500">
+                                        Amount {getSortIcon('amount')}
+                                    </th>
+                                    <th onClick={() => sortData('currency')}
+                                        className="px-6 py-3 text-center text-sm font-semibold cursor-pointer hover:bg-blue-700 border-b border-blue-500">
+                                        Currency {getSortIcon('currency')}
+                                    </th>
+                                    <th onClick={() => sortData('created_ts')}
+                                        className="px-6 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-blue-700 border-b border-blue-500">
+                                        Created At {getSortIcon('created_ts')}
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200">
                                 {expensesData.map((item, index) => (
-                                    <tr key={index} className="hover:bg-gray-50 transition duration-150">
-                                        {Object.values(item).map((value: any, i) => (
-                                            <td key={i} className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                                {typeof value?.valueOf() === 'number' 
-                                                    ? value.valueOf().toFixed(2) 
-                                                    : value?.valueOf()?.toString()}
-                                            </td>
-                                        ))}
+                                    <tr key={index} 
+                                        className={`${index % 2 === 0 ? 'bg-white' : 'bg-blue-50'} hover:bg-blue-100 transition-colors duration-150`}>
+                                        <td className="px-6 py-4 text-gray-900">
+                                            {getMonthName(item.ef_month)}
+                                        </td>
+                                        <td className="px-6 py-4 text-gray-900">
+                                            {item.category}
+                                        </td>
+                                        <td className="px-6 py-4 text-gray-900">
+                                            {item.biller}
+                                        </td>
+                                        <td className="px-6 py-4 text-right text-gray-900 font-medium">
+                                            {formatAmount(item.amount)}
+                                        </td>
+                                        <td className="px-6 py-4 text-center text-gray-900">
+                                            {item.currency}
+                                        </td>
+                                        <td className="px-6 py-4 text-gray-900">
+                                            {formatTimestamp(item.created_ts)}
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
