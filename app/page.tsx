@@ -17,7 +17,7 @@ ORDER BY ef_month;`;
 
 const INSERT_EXPENSE_QUERY = `
 INSERT INTO expensage_backend.expenses_forecast (ef_month, category, biller, amount, currency, created_ts, updated_ts)
-VALUES (?, ?, ?, ?, 'INR', current_timestamp, current_timestamp);`;
+VALUES ($ef_month, '$category', '$biller', $amount, 'INR', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);`;
 
 interface ExpenseFormData {
     ef_month: number;
@@ -90,74 +90,59 @@ function ExpenseInputForm({ onExpenseAdded }: { onExpenseAdded: () => void }) {
         biller: '',
         amount: 0
     });
+    const [customCategory, setCustomCategory] = useState('');
+    const [showCustomCategory, setShowCustomCategory] = useState(false);
 
     const categories = [
-        'Food',
-        'Transportation',
-        'Housing',
         'Utilities',
-        'Healthcare',
-        'Entertainment',
-        'Shopping',
-        'Education',
+        'Rent',
         'Insurance',
-        'Other'
+        'Groceries',
+        'Entertainment',
+        'Gas',
+        'Internet',
+        'Phone',
+        'Other',
+        'Custom'
     ];
 
-    const validateForm = (): boolean => {
-        if (!formData.ef_month) {
-            setError('Month is required');
-            return false;
+    const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const value = e.target.value;
+        if (value === 'Custom') {
+            setShowCustomCategory(true);
+            setFormData(prev => ({ ...prev, category: '' }));
+        } else {
+            setShowCustomCategory(false);
+            setFormData(prev => ({ ...prev, category: value }));
         }
-        if (!formData.category) {
-            setError('Category is required');
-            return false;
-        }
-        if (!formData.biller) {
-            setError('Biller is required');
-            return false;
-        }
-        if (!formData.amount || formData.amount <= 0) {
-            setError('Amount must be greater than 0');
-            return false;
-        }
-        return true;
+    };
+
+    const handleCustomCategoryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        setCustomCategory(value);
+        setFormData(prev => ({ ...prev, category: value }));
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setLoading(true);
-        setError(null);
-
-        if (!validateForm()) {
-            setLoading(false);
+        if (!formData.category) {
+            setError('Please select or enter a category');
             return;
         }
-
         try {
-            // Create an array of values in the correct order
-            const values = [
-                formData.ef_month,
-                formData.category,
-                formData.biller,
-                formData.amount
-            ];
-
-            // Replace only the first 4 placeholders with form values
-            let queryParts = INSERT_EXPENSE_QUERY.split('?');
-            let finalQuery = queryParts[0];
+            setLoading(true);
+            setError(null);
             
-            for (let i = 0; i < values.length; i++) {
-                const value = values[i];
-                if (value === undefined || value === null) {
-                    throw new Error('Required field is missing');
-                }
-                finalQuery += (typeof value === 'number' ? value : `'${value}'`) + queryParts[i + 1];
-            }
+            // Create and execute the query with interpolated values
+            const interpolatedQuery = INSERT_EXPENSE_QUERY
+                .replace('$ef_month', formData.ef_month.toString())
+                .replace('$category', formData.category.replace(/'/g, "''"))  // Escape single quotes
+                .replace('$biller', formData.biller.replace(/'/g, "''"))      // Escape single quotes
+                .replace('$amount', formData.amount.toString());
 
-            console.log('Executing query:', finalQuery);
-            const result = await safeEvaluateQuery(finalQuery);
-            
+            console.log('Executing query:', interpolatedQuery);
+            const result = await safeEvaluateQuery(interpolatedQuery);
+
             if (result.status === "success") {
                 setFormData({
                     ef_month: new Date().getMonth() + 1,
@@ -165,41 +150,34 @@ function ExpenseInputForm({ onExpenseAdded }: { onExpenseAdded: () => void }) {
                     biller: '',
                     amount: 0
                 });
+                setCustomCategory('');
+                setShowCustomCategory(false);
                 onExpenseAdded();
             } else {
-                setError(result.err.message);
+                throw new Error(result.err.message);
             }
         } catch (err) {
-            console.error('Error submitting form:', err);
-            setError(err instanceof Error ? err.message : 'Failed to add expense');
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            console.error('Error in handleSubmit:', errorMessage);
+            setError(`Failed to add expense: ${errorMessage}`);
         } finally {
             setLoading(false);
         }
     };
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({
-
-            ...prev,
-            [name]: name === 'amount' ? parseFloat(value) || 0 : value
-        }));
-    };
-
     return (
-        <div className="mb-8 bg-white rounded-xl shadow-lg overflow-hidden">
-            <div className="px-6 py-4 bg-gradient-to-r from-blue-600 to-blue-700">
-                <h2 className="text-xl font-bold text-white">Add New Expense</h2>
-            </div>
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-white rounded-xl shadow-lg p-6">
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">Add New Expense</h2>
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Month</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Month
+                        </label>
                         <select
-                            name="ef_month"
                             value={formData.ef_month}
-                            onChange={handleInputChange}
-                            className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 text-gray-900"
+                            onChange={(e) => setFormData(prev => ({ ...prev, ef_month: parseInt(e.target.value) }))}
+                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                             required
                         >
                             {[...Array(12).keys()].map(i => (
@@ -207,56 +185,82 @@ function ExpenseInputForm({ onExpenseAdded }: { onExpenseAdded: () => void }) {
                             ))}
                         </select>
                     </div>
+
                     <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Category</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Category
+                        </label>
                         <select
-                            name="category"
-                            value={formData.category}
-                            onChange={handleInputChange}
-                            className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 text-gray-900"
+                            value={showCustomCategory ? 'Custom' : formData.category}
+                            onChange={handleCategoryChange}
+                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                             required
                         >
-                            <option value="">Select a category</option>
-                            {categories.map(cat => (
-                                <option key={cat} value={cat}>{cat}</option>
+                            <option value="">Select Category</option>
+                            {categories.map(category => (
+                                <option key={category} value={category}>{category}</option>
                             ))}
                         </select>
                     </div>
+
+                    {showCustomCategory && (
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Custom Category
+                            </label>
+                            <input
+                                type="text"
+                                value={customCategory}
+                                onChange={handleCustomCategoryChange}
+                                className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                                placeholder="Enter custom category"
+                                required
+                            />
+                        </div>
+                    )}
+
                     <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Biller</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Biller
+                        </label>
                         <input
                             type="text"
-                            name="biller"
                             value={formData.biller}
-                            onChange={handleInputChange}
-                            className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 text-gray-900"
+                            onChange={(e) => setFormData(prev => ({ ...prev, biller: e.target.value }))}
+                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                            placeholder="Enter biller name"
                             required
                         />
                     </div>
+
                     <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Amount</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Amount
+                        </label>
                         <input
                             type="number"
-                            name="amount"
                             value={formData.amount}
-                            onChange={handleInputChange}
+                            onChange={(e) => setFormData(prev => ({ ...prev, amount: parseFloat(e.target.value) }))}
+                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                            placeholder="Enter amount"
                             step="0.01"
                             min="0"
-                            className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 text-gray-900"
                             required
                         />
                     </div>
                 </div>
+
                 {error && (
-                    <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+                    <div className="text-red-600 text-sm mt-2 p-2 bg-red-50 rounded-lg border border-red-200">
                         {error}
                     </div>
                 )}
-                <div>
+
+                <div className="flex justify-end mt-4">
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {loading ? 'Adding...' : 'Add Expense'}
                     </button>
