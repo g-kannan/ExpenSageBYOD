@@ -20,6 +20,13 @@ FROM expensage_backend.expenses_forecast
 GROUP BY ef_month
 ORDER BY total DESC;`;
 
+const STATS_QUERY_STRING = `
+SELECT 
+    sum(amount) as yearly_total,
+    sum(amount)/12 as avg_expense_month,
+    round(sum(amount)/365) as avg_expense_day 
+FROM expensage_backend.expenses_forecast;`;
+
 const INSERT_EXPENSE_QUERY = `
 INSERT INTO expensage_backend.expenses_forecast (ef_month, category, biller, amount, currency, created_ts, updated_ts)
 VALUES ($ef_month, '$category', '$biller', $amount, 'INR', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);`;
@@ -65,7 +72,21 @@ const useFetchExpensesData = () => {
         }
     }, [safeEvaluateQuery]);
 
-    return { fetchExpensesData, fetchSummaryData, error };
+    const fetchStatsData = useCallback(async () => {
+        try {
+            const result = await safeEvaluateQuery(STATS_QUERY_STRING);
+            if (result.status !== "success") {
+                throw new Error(result.err.message);
+            }
+            return result.result.data.toRows()?.[0] || null;
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            setError(`Failed to fetch stats data: ${errorMessage}`);
+            return null;
+        }
+    }, [safeEvaluateQuery]);
+
+    return { fetchExpensesData, fetchSummaryData, fetchStatsData, error };
 }
 
 const getMonthName = (monthNumber: number): string => {
@@ -368,10 +389,11 @@ interface SortConfig {
 }
 
 function ExpensesTable() {
-    const { fetchExpensesData, fetchSummaryData, error: fetchError } = useFetchExpensesData();
+    const { fetchExpensesData, fetchSummaryData, fetchStatsData, error: fetchError } = useFetchExpensesData();
     const { setToken } = useMotherDuckClientState();
     const [expensesData, setExpensesData] = useState<any[]>([]);
     const [summaryData, setSummaryData] = useState<any[]>([]);
+    const [statsData, setStatsData] = useState<any>(null);
     const [loading, setLoading] = useState(false);
     const [tokenInput, setTokenInput] = useState('');
     const [error, setError] = useState<string | null>(null);
@@ -389,17 +411,20 @@ function ExpensesTable() {
             setToken(tokenInput);
             await new Promise(resolve => setTimeout(resolve, 1000));
             
-            // Fetch both regular and summary data
-            const [regularData, summaryData] = await Promise.all([
+            // Fetch all data
+            const [regularData, summaryData, statsData] = await Promise.all([
                 fetchExpensesData(),
-                fetchSummaryData()
+                fetchSummaryData(),
+                fetchStatsData()
             ]);
 
             console.log('Regular Data:', regularData);
             console.log('Summary Data:', summaryData);
+            console.log('Stats Data:', statsData);
 
             setExpensesData(regularData || []);
             setSummaryData(summaryData || []);
+            setStatsData(statsData);
 
             if ((!regularData || regularData.length === 0) && (!summaryData || summaryData.length === 0)) {
                 setError('No data returned from the query. Please check if the table exists and has data.');
@@ -412,6 +437,7 @@ function ExpensesTable() {
             setError(`Failed to fetch data: ${errorMessage}`);
             setExpensesData([]);
             setSummaryData([]);
+            setStatsData(null);
         } finally {
             setLoading(false);
         }
@@ -468,6 +494,27 @@ function ExpensesTable() {
                     className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 text-gray-900"
                     placeholder="Enter your MotherDuck token"
                 />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-white rounded-xl shadow-lg p-6">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-2">Yearly Total</h3>
+                    <p className="text-3xl font-bold text-blue-600">
+                        ₹{statsData?.yearly_total?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0'}
+                    </p>
+                </div>
+                <div className="bg-white rounded-xl shadow-lg p-6">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-2">Avg Expense/Month</h3>
+                    <p className="text-3xl font-bold text-blue-600">
+                        ₹{statsData?.avg_expense_month?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0'}
+                    </p>
+                </div>
+                <div className="bg-white rounded-xl shadow-lg p-6">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-2">Avg Expense/Day</h3>
+                    <p className="text-3xl font-bold text-blue-600">
+                        ₹{statsData?.avg_expense_day?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0'}
+                    </p>
+                </div>
             </div>
 
             <ExpenseInputForm onExpenseAdded={handleFetchExpensesData} />
