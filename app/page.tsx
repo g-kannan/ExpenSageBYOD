@@ -516,6 +516,9 @@ function ExpensesTable() {
             </div>
             
             <div className="bg-white rounded-xl shadow-lg p-6">
+                <div className="mb-4 text-sm text-gray-600">
+                    <p>Don't have a MotherDuck account? <a href="https://app.motherduck.com/?auth_flow=signup" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline">Sign up here</a> to get your token.</p>
+                </div>
                 <label htmlFor="token" className="block text-sm font-semibold text-gray-700 mb-2">MotherDuck Token</label>
                 <input
                     type="password"
