@@ -397,8 +397,43 @@ function ExpensesTable() {
     const [loading, setLoading] = useState(false);
     const [tokenInput, setTokenInput] = useState('');
     const [error, setError] = useState<string | null>(null);
-    const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'ef_month', direction: 'ascending' });
+    const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'total', direction: 'descending' });
     const [activeView, setActiveView] = useState<'table' | 'summary'>('table');
+
+    const getAmountColor = (amount: number) => {
+        const maxAmount = Math.max(...summaryData.map(item => item.total));
+        const percentage = amount / maxAmount;
+        
+        if (percentage >= 0.8) return 'text-red-600'; // Hot
+        if (percentage >= 0.6) return 'text-orange-500'; // Warm
+        if (percentage >= 0.4) return 'text-yellow-500'; // Moderate
+        if (percentage >= 0.2) return 'text-green-500'; // Cool
+        return 'text-blue-500'; // Cold
+    };
+
+    const sortSummaryData = (key: 'month' | 'total') => {
+        let direction: 'ascending' | 'descending' = 'ascending';
+        if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+            direction = 'descending';
+        }
+        setSortConfig({ key, direction });
+
+        const sortedData = [...summaryData].sort((a, b) => {
+            if (key === 'total') {
+                return direction === 'ascending' ? a[key] - b[key] : b[key] - a[key];
+            }
+            // For month sorting
+            return direction === 'ascending' 
+                ? a[key] - b[key]
+                : b[key] - a[key];
+        });
+        setSummaryData(sortedData);
+    };
+
+    const getSortIcon = (key: string) => {
+        if (sortConfig.key !== key) return '↕️';
+        return sortConfig.direction === 'ascending' ? '↑' : '↓';
+    };
 
     const handleFetchExpensesData = async () => {
         if (!tokenInput) {
@@ -465,11 +500,6 @@ function ExpensesTable() {
             return a[key] < b[key] ? 1 : -1;
         });
         setExpensesData(sortedData);
-    };
-
-    const getSortIcon = (key: string) => {
-        if (sortConfig.key !== key) return '↕️';
-        return sortConfig.direction === 'ascending' ? '↑' : '↓';
     };
 
     const displayError = error || fetchError;
@@ -571,8 +601,18 @@ function ExpensesTable() {
                             <table className="min-w-full bg-white">
                                 <thead className="sticky top-0 bg-blue-600 text-white">
                                     <tr>
-                                        <th className="px-6 py-3 text-left text-sm font-semibold">Month</th>
-                                        <th className="px-6 py-3 text-right text-sm font-semibold">Total Amount</th>
+                                        <th 
+                                            onClick={() => sortSummaryData('month')}
+                                            className="px-6 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-blue-700 transition-colors duration-150"
+                                        >
+                                            Month {getSortIcon('month')}
+                                        </th>
+                                        <th 
+                                            onClick={() => sortSummaryData('total')}
+                                            className="px-6 py-3 text-right text-sm font-semibold cursor-pointer hover:bg-blue-700 transition-colors duration-150"
+                                        >
+                                            Total Amount {getSortIcon('total')}
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-200">
@@ -582,7 +622,7 @@ function ExpensesTable() {
                                             <td className="px-6 py-4 text-gray-900">
                                                 {getMonthName(item.month)}
                                             </td>
-                                            <td className="px-6 py-4 text-right text-gray-900 font-medium">
+                                            <td className={`px-6 py-4 text-right font-medium ${getAmountColor(item.total)}`}>
                                                 {formatAmount(item.total)}
                                             </td>
                                         </tr>
