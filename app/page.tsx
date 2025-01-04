@@ -392,9 +392,9 @@ interface SortConfig {
 function ExpensesTable() {
     const { fetchExpensesData, fetchSummaryData, fetchStatsData, error: fetchError } = useFetchExpensesData();
     const { setToken } = useMotherDuckClientState();
-    const [expensesData, setExpensesData] = useState<any[]>([]);
-    const [summaryData, setSummaryData] = useState<any[]>([]);
-    const [statsData, setStatsData] = useState<any>(null);
+    const [expensesData, setExpensesData] = useState<Record<string, any>[]>([]);
+    const [summaryData, setSummaryData] = useState<Record<string, any>[]>([]);
+    const [statsData, setStatsData] = useState<Record<string, any> | null>(null);
     const [loading, setLoading] = useState(false);
     const [tokenInput, setTokenInput] = useState('');
     const [error, setError] = useState<string | null>(null);
@@ -458,8 +458,8 @@ function ExpensesTable() {
             console.log('Summary Data:', summaryData);
             console.log('Stats Data:', statsData);
 
-            setExpensesData(regularData || []);
-            setSummaryData(summaryData || []);
+            setExpensesData(regularData ? [...regularData] : []);
+            setSummaryData(summaryData ? [...summaryData] : []);
             setStatsData(statsData);
 
             if ((!regularData || regularData.length === 0) && (!summaryData || summaryData.length === 0)) {
