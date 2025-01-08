@@ -1,217 +1,201 @@
 'use client'
 
 import { useState } from 'react';
-import { getMonthName, formatAmount, formatTimestamp } from '@/lib/utils/formatters';
+import { formatAmount, getMonthName, formatTimestamp } from '@/lib/utils/formatters';
 import { ExportButton } from './ExportButton';
 
-interface SortConfig {
-    key: string;
-    direction: 'ascending' | 'descending';
-}
-
 interface ExpenseTableProps {
-    expensesData: any[];
-    summaryData: any[];
+    expensesData: Record<string, any>[];
+    summaryData: Record<string, any>[];
     loading: boolean;
     error: string | null;
 }
 
+type SortField = 'month' | 'category' | 'biller' | 'amount' | 'created_ts' | 'ef_month' | 'total';
+type SortDirection = 'asc' | 'desc';
+
 export function ExpenseTable({ expensesData, summaryData, loading, error }: ExpenseTableProps) {
-    const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'total', direction: 'descending' });
-    const [activeView, setActiveView] = useState<'table' | 'summary'>('table');
+    const [view, setView] = useState<'regular' | 'summary'>('regular');
+    const [sortField, setSortField] = useState<SortField>('ef_month');
+    const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
-    const getAmountColor = (amount: number) => {
-        const maxAmount = Math.max(...summaryData.map(item => item.total));
-        const percentage = amount / maxAmount;
-        
-        if (percentage >= 0.8) return 'text-red-600';
-        if (percentage >= 0.6) return 'text-orange-500';
-        if (percentage >= 0.4) return 'text-yellow-500';
-        if (percentage >= 0.2) return 'text-green-500';
-        return 'text-blue-500';
-    };
-
-    const sortData = (key: string) => {
-        let direction: 'ascending' | 'descending' = 'ascending';
-        if (sortConfig.key === key && sortConfig.direction === 'ascending') {
-            direction = 'descending';
+    const handleSort = (field: SortField) => {
+        if (sortField === field) {
+            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortField(field);
+            setSortDirection('asc');
         }
-        setSortConfig({ key, direction });
+    };
 
-        const sortedData = [...expensesData].sort((a, b) => {
-            if (key === 'amount') {
-                return direction === 'ascending' ? a[key] - b[key] : b[key] - a[key];
+    const getMonthValue = (monthNum: number): number => {
+        return monthNum;
+    };
+
+    const sortData = (data: Record<string, any>[]): Record<string, any>[] => {
+        return [...data].sort((a, b) => {
+            if (sortField === 'month' || sortField === 'ef_month') {
+                const aValue = getMonthValue(a.month || a.ef_month);
+                const bValue = getMonthValue(b.month || b.ef_month);
+                return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
             }
-            if (key === 'created_ts') {
-                return direction === 'ascending' 
-                    ? new Date(a[key]).getTime() - new Date(b[key]).getTime()
-                    : new Date(b[key]).getTime() - new Date(a[key]).getTime();
+            
+            if (sortField === 'amount' || sortField === 'total') {
+                const aValue = parseFloat(a.amount || a.total || 0);
+                const bValue = parseFloat(b.amount || b.total || 0);
+                return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
             }
-            if (direction === 'ascending') {
-                return a[key] > b[key] ? 1 : -1;
+
+            if (sortField === 'created_ts') {
+                return sortDirection === 'asc' 
+                    ? new Date(a[sortField]).getTime() - new Date(b[sortField]).getTime()
+                    : new Date(b[sortField]).getTime() - new Date(a[sortField]).getTime();
             }
-            return a[key] < b[key] ? 1 : -1;
+
+            const aValue = a[sortField]?.toString().toLowerCase() ?? '';
+            const bValue = b[sortField]?.toString().toLowerCase() ?? '';
+            return sortDirection === 'asc' 
+                ? aValue.localeCompare(bValue)
+                : bValue.localeCompare(aValue);
         });
-        return sortedData;
     };
 
-    const sortSummaryData = (key: 'month' | 'total') => {
-        let direction: 'ascending' | 'descending' = 'ascending';
-        if (sortConfig.key === key && sortConfig.direction === 'ascending') {
-            direction = 'descending';
-        }
-        setSortConfig({ key, direction });
-
-        const sortedData = [...summaryData].sort((a, b) => {
-            if (key === 'total') {
-                return direction === 'ascending' ? a[key] - b[key] : b[key] - a[key];
-            }
-            return direction === 'ascending' 
-                ? a[key] - b[key]
-                : b[key] - a[key];
-        });
-        return sortedData;
-    };
-
-    const getSortIcon = (key: string) => {
-        if (sortConfig.key !== key) return '↕️';
-        return sortConfig.direction === 'ascending' ? '↑' : '↓';
-    };
+    const sortedExpensesData = sortData(expensesData);
+    const sortedSummaryData = sortData(summaryData);
 
     if (loading) {
         return <div className="text-center py-4">Loading...</div>;
     }
 
     if (error) {
-        return <div className="text-red-500 text-center py-4">{error}</div>;
+        return <div className="text-red-500 py-4">{error}</div>;
     }
 
     return (
-        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-            <div className="border-b border-gray-200">
-                <nav className="flex justify-between items-center">
-                    <div className="flex">
-                        <button
-                            onClick={() => setActiveView('table')}
-                            className={`px-4 py-2 text-sm font-medium ${
-                                activeView === 'table'
-                                    ? 'border-b-2 border-blue-500 text-blue-600'
-                                    : 'text-gray-500 hover:text-gray-700'
-                            }`}
-                        >
-                            Table View
-                        </button>
-                        <button
-                            onClick={() => setActiveView('summary')}
-                            className={`px-4 py-2 text-sm font-medium ${
-                                activeView === 'summary'
-                                    ? 'border-b-2 border-blue-500 text-blue-600'
-                                    : 'text-gray-500 hover:text-gray-700'
-                            }`}
-                        >
-                            Monthly Summary
-                        </button>
-                    </div>
-                    <ExportButton 
-                        data={activeView === 'table' ? expensesData : summaryData}
-                        activeView={activeView}
-                        getMonthName={getMonthName}
-                        formatTimestamp={formatTimestamp}
-                    />
-                </nav>
+        <div className="bg-white rounded-xl shadow-lg p-6">
+            <div className="flex justify-between items-center mb-4">
+                <div className="flex space-x-2">
+                    <button
+                        onClick={() => setView('regular')}
+                        className={`px-4 py-2 rounded-lg ${
+                            view === 'regular'
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                    >
+                        Regular View
+                    </button>
+                    <button
+                        onClick={() => setView('summary')}
+                        className={`px-4 py-2 rounded-lg ${
+                            view === 'summary'
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                    >
+                        Summary View
+                    </button>
+                </div>
+                <ExportButton 
+                    data={view === 'regular' ? expensesData : summaryData}
+                    activeView={view}
+                    getMonthName={getMonthName}
+                    formatTimestamp={formatTimestamp}
+                />
             </div>
 
             <div className="overflow-x-auto">
-                <div className="max-h-[600px] overflow-y-auto">
-                    {activeView === 'summary' ? (
-                        <table className="min-w-full bg-white">
-                            <thead className="sticky top-0 bg-blue-600 text-white">
-                                <tr>
-                                    <th 
-                                        onClick={() => sortSummaryData('month')}
-                                        className="px-6 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-blue-700 transition-colors duration-150"
+                <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                        <tr>
+                            <th
+                                scope="col"
+                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                onClick={() => handleSort('ef_month')}
+                            >
+                                Month {sortField === 'ef_month' && (sortDirection === 'asc' ? '↑' : '↓')}
+                            </th>
+                            {view === 'regular' && (
+                                <>
+                                    <th
+                                        scope="col"
+                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                        onClick={() => handleSort('category')}
                                     >
-                                        Month {getSortIcon('month')}
+                                        Category {sortField === 'category' && (sortDirection === 'asc' ? '↑' : '↓')}
                                     </th>
-                                    <th 
-                                        onClick={() => sortSummaryData('total')}
-                                        className="px-6 py-3 text-right text-sm font-semibold cursor-pointer hover:bg-blue-700 transition-colors duration-150"
+                                    <th
+                                        scope="col"
+                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                        onClick={() => handleSort('biller')}
                                     >
-                                        Total Amount {getSortIcon('total')}
+                                        Biller {sortField === 'biller' && (sortDirection === 'asc' ? '↑' : '↓')}
                                     </th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200">
-                                {summaryData.map((item, index) => (
-                                    <tr key={index} 
-                                        className={`${index % 2 === 0 ? 'bg-white' : 'bg-blue-50'} hover:bg-blue-100 transition-colors duration-150`}>
-                                        <td className="px-6 py-4 text-gray-900">
-                                            {getMonthName(item.month)}
-                                        </td>
-                                        <td className={`px-6 py-4 text-right font-medium ${getAmountColor(item.total)}`}>
-                                            {formatAmount(item.total)}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    ) : (
-                        <table className="min-w-full bg-white">
-                            <thead className="sticky top-0 bg-blue-600 text-white">
-                                <tr>
-                                    <th onClick={() => sortData('ef_month')} 
-                                        className="px-6 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-blue-700 border-b border-blue-500">
-                                        Month {getSortIcon('ef_month')}
+                                </>
+                            )}
+                            <th
+                                scope="col"
+                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                onClick={() => handleSort(view === 'regular' ? 'amount' : 'total')}
+                            >
+                                {view === 'regular' ? 'Amount' : 'Total'} {(sortField === 'amount' || sortField === 'total') && (sortDirection === 'asc' ? '↑' : '↓')}
+                            </th>
+                            {view === 'regular' && (
+                                <>
+                                    <th
+                                        scope="col"
+                                        className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                        onClick={() => handleSort('currency')}
+                                    >
+                                        Currency {sortField === 'currency' && (sortDirection === 'asc' ? '↑' : '↓')}
                                     </th>
-                                    <th onClick={() => sortData('category')}
-                                        className="px-6 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-blue-700 border-b border-blue-500">
-                                        Category {getSortIcon('category')}
+                                    <th
+                                        scope="col"
+                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                        onClick={() => handleSort('created_ts')}
+                                    >
+                                        Created At {sortField === 'created_ts' && (sortDirection === 'asc' ? '↑' : '↓')}
                                     </th>
-                                    <th onClick={() => sortData('biller')}
-                                        className="px-6 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-blue-700 border-b border-blue-500">
-                                        Biller {getSortIcon('biller')}
-                                    </th>
-                                    <th onClick={() => sortData('amount')}
-                                        className="px-6 py-3 text-right text-sm font-semibold cursor-pointer hover:bg-blue-700 border-b border-blue-500">
-                                        Amount {getSortIcon('amount')}
-                                    </th>
-                                    <th onClick={() => sortData('currency')}
-                                        className="px-6 py-3 text-center text-sm font-semibold cursor-pointer hover:bg-blue-700 border-b border-blue-500">
-                                        Currency {getSortIcon('currency')}
-                                    </th>
-                                    <th onClick={() => sortData('created_ts')}
-                                        className="px-6 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-blue-700 border-b border-blue-500">
-                                        Created At {getSortIcon('created_ts')}
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200">
-                                {expensesData.map((item, index) => (
-                                    <tr key={index} className={`${index % 2 === 0 ? 'bg-white' : 'bg-blue-50'} hover:bg-blue-100 transition-colors duration-150`}>
-                                        <td className="px-6 py-4 text-gray-900">
-                                            {getMonthName(item.ef_month)}
-                                        </td>
-                                        <td className="px-6 py-4 text-gray-900">
-                                            {item.category}
-                                        </td>
-                                        <td className="px-6 py-4 text-gray-900">
-                                            {item.biller}
-                                        </td>
-                                        <td className="px-6 py-4 text-right font-medium text-blue-600">
-                                            {formatAmount(item.amount)}
-                                        </td>
-                                        <td className="px-6 py-4 text-center text-gray-900">
-                                            {item.currency}
-                                        </td>
-                                        <td className="px-6 py-4 text-gray-900">
-                                            {formatTimestamp(item.created_ts)}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    )}
-                </div>
+                                </>
+                            )}
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                        {view === 'regular'
+                            ? sortedExpensesData.map((expense, index) => (
+                                  <tr key={index} className="hover:bg-gray-50">
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                          {getMonthName(expense.ef_month)}
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                          {expense.category}
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                          {expense.biller}
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                          ₹{formatAmount(expense.amount)}
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
+                                          {expense.currency}
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                          {formatTimestamp(expense.created_ts)}
+                                      </td>
+                                  </tr>
+                              ))
+                            : sortedSummaryData.map((summary, index) => (
+                                  <tr key={index} className="hover:bg-gray-50">
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                          {getMonthName(summary.month)}
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                          ₹{formatAmount(summary.total)}
+                                      </td>
+                                  </tr>
+                              ))}
+                    </tbody>
+                </table>
             </div>
         </div>
     );

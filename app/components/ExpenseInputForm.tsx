@@ -7,6 +7,7 @@ import { INSERT_EXPENSE_QUERY } from '@/lib/constants/queries';
 interface ExpenseFormData {
     ef_month: number;
     category: string;
+    customCategory: string;
     biller: string;
     amount: number;
     recurring: boolean;
@@ -17,11 +18,25 @@ interface ExpenseInputFormProps {
     onExpenseAdded: () => void;
 }
 
+const CATEGORIES = [
+    'Utilities',
+    'Rent',
+    'Insurance',
+    'Groceries',
+    'Entertainment',
+    'Gas',
+    'Internet',
+    'Phone',
+    'Other',
+    'Custom'
+];
+
 export function ExpenseInputForm({ onExpenseAdded }: ExpenseInputFormProps) {
     const { safeEvaluateQuery } = useMotherDuckClientState();
     const [formData, setFormData] = useState<ExpenseFormData>({
         ef_month: new Date().getMonth() + 1,
         category: '',
+        customCategory: '',
         biller: '',
         amount: 0,
         recurring: false,
@@ -36,7 +51,9 @@ export function ExpenseInputForm({ onExpenseAdded }: ExpenseInputFormProps) {
         setIsSubmitting(true);
 
         try {
-            if (!formData.category || !formData.biller || formData.amount <= 0) {
+            const finalCategory = formData.category === 'Custom' ? formData.customCategory : formData.category;
+            
+            if (!finalCategory || !formData.biller || formData.amount <= 0) {
                 throw new Error('Please fill in all required fields with valid values');
             }
 
@@ -45,7 +62,7 @@ export function ExpenseInputForm({ onExpenseAdded }: ExpenseInputFormProps) {
             for (const month of months) {
                 const query = INSERT_EXPENSE_QUERY
                     .replace('$ef_month', month.toString())
-                    .replace('$category', formData.category)
+                    .replace('$category', finalCategory)
                     .replace('$biller', formData.biller)
                     .replace('$amount', formData.amount.toString());
 
@@ -59,6 +76,7 @@ export function ExpenseInputForm({ onExpenseAdded }: ExpenseInputFormProps) {
             setFormData({
                 ef_month: new Date().getMonth() + 1,
                 category: '',
+                customCategory: '',
                 biller: '',
                 amount: 0,
                 recurring: false,
@@ -120,7 +138,7 @@ export function ExpenseInputForm({ onExpenseAdded }: ExpenseInputFormProps) {
                             id="ef_month"
                             value={formData.ef_month}
                             onChange={(e) => setFormData({ ...formData, ef_month: parseInt(e.target.value) })}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                         >
                             {Array.from({ length: 12 }, (_, i) => (
                                 <option key={i + 1} value={i + 1}>
@@ -134,14 +152,32 @@ export function ExpenseInputForm({ onExpenseAdded }: ExpenseInputFormProps) {
                         <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
                             Category
                         </label>
-                        <input
-                            type="text"
-                            id="category"
-                            value={formData.category}
-                            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="e.g., Utilities, Rent"
-                        />
+                        <div className="space-y-2">
+                            <select
+                                id="category"
+                                value={formData.category}
+                                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                            >
+                                <option value="">Select a category</option>
+                                {CATEGORIES.map((category) => (
+                                    <option key={category} value={category}>
+                                        {category}
+                                    </option>
+                                ))}
+                            </select>
+                            
+                            {formData.category === 'Custom' && (
+                                <input
+                                    type="text"
+                                    id="customCategory"
+                                    value={formData.customCategory}
+                                    onChange={(e) => setFormData({ ...formData, customCategory: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                                    placeholder="Enter custom category"
+                                />
+                            )}
+                        </div>
                     </div>
 
                     <div>
@@ -153,7 +189,7 @@ export function ExpenseInputForm({ onExpenseAdded }: ExpenseInputFormProps) {
                             id="biller"
                             value={formData.biller}
                             onChange={(e) => setFormData({ ...formData, biller: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                             placeholder="e.g., Electric Company"
                         />
                     </div>
@@ -167,7 +203,7 @@ export function ExpenseInputForm({ onExpenseAdded }: ExpenseInputFormProps) {
                             id="amount"
                             value={formData.amount || ''}
                             onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                             placeholder="0.00"
                             min="0"
                             step="0.01"
@@ -198,7 +234,7 @@ export function ExpenseInputForm({ onExpenseAdded }: ExpenseInputFormProps) {
                             <select
                                 value={formData.frequency}
                                 onChange={(e) => setFormData({ ...formData, frequency: e.target.value as any })}
-                                className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                             >
                                 <option value="Monthly">Monthly</option>
                                 <option value="Quarterly">Quarterly</option>
