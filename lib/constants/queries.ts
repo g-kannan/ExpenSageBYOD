@@ -12,6 +12,7 @@ ORDER BY ef_month ASC, created_ts DESC;`;
 export const SUMMARY_QUERY_STRING = `
 SELECT ef_month as month, SUM(amount) as total 
 FROM expensage_backend.expenses_forecast
+WHERE currency='$currency'
 GROUP BY ef_month
 ORDER BY ef_month ASC;`;
 

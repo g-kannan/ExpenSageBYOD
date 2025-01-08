@@ -19,7 +19,7 @@ function ExpensageApp() {
     const { setToken } = useMotherDuckClientState();
     const { fetchExpensesData, fetchSummaryData, fetchStatsData, error: fetchError } = useFetchExpensesData();
 
-    const handleFetchExpensesData = async () => {
+    const handleFetchExpensesData = async (currency: string = 'INR') => {
         if (!tokenInput) {
             setError('Please enter a MotherDuck token');
             return;
@@ -32,7 +32,7 @@ function ExpensageApp() {
             
             const [regularData, summaryData, statsData] = await Promise.all([
                 fetchExpensesData(),
-                fetchSummaryData(),
+                fetchSummaryData(currency),
                 fetchStatsData()
             ]);
 
@@ -52,6 +52,19 @@ function ExpensageApp() {
             setExpensesData([]);
             setSummaryData([]);
             setStatsData(null);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleCurrencyChange = async (currency: string) => {
+        try {
+            setLoading(true);
+            const summaryData = await fetchSummaryData(currency);
+            setSummaryData(summaryData ? [...summaryData] : []);
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
+            setError(`Failed to fetch summary data: ${errorMessage}`);
         } finally {
             setLoading(false);
         }
@@ -100,6 +113,7 @@ function ExpensageApp() {
                     summaryData={summaryData}
                     loading={loading}
                     error={error || fetchError}
+                    onCurrencyChange={handleCurrencyChange}
                 />
             </div>
         </div>

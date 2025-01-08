@@ -9,15 +9,24 @@ interface ExpenseTableProps {
     summaryData: Record<string, any>[];
     loading: boolean;
     error: string | null;
+    onCurrencyChange: (currency: string) => void;
 }
 
 type SortField = 'month' | 'category' | 'biller' | 'amount' | 'created_ts' | 'ef_month' | 'total' | 'currency';
 type SortDirection = 'asc' | 'desc';
 
-export function ExpenseTable({ expensesData, summaryData, loading, error }: ExpenseTableProps) {
+export function ExpenseTable({ expensesData, summaryData, loading, error, onCurrencyChange }: ExpenseTableProps) {
     const [view, setView] = useState<'regular' | 'summary'>('regular');
     const [sortField, setSortField] = useState<SortField>('ef_month');
     const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+    const [selectedCurrency, setSelectedCurrency] = useState('INR');
+
+    const currencies = ['INR', 'USD', 'EUR', 'GBP'];
+
+    const handleCurrencyChange = (currency: string) => {
+        setSelectedCurrency(currency);
+        onCurrencyChange(currency);
+    };
 
     const handleSort = (field: SortField) => {
         if (sortField === field) {
@@ -107,6 +116,19 @@ export function ExpenseTable({ expensesData, summaryData, loading, error }: Expe
                     >
                         Summary View
                     </button>
+                    {view === 'summary' && (
+                        <select
+                            value={selectedCurrency}
+                            onChange={(e) => handleCurrencyChange(e.target.value)}
+                            className="px-4 py-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        >
+                            {currencies.map((currency) => (
+                                <option key={currency} value={currency}>
+                                    {currency} ({getCurrencySymbol(currency)})
+                                </option>
+                            ))}
+                        </select>
+                    )}
                 </div>
                 <ExportButton 
                     data={view === 'regular' ? expensesData : summaryData}
@@ -202,7 +224,7 @@ export function ExpenseTable({ expensesData, summaryData, loading, error }: Expe
                                           {getMonthName(summary.month)}
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                          {getCurrencySymbol('INR')}{formatAmount(summary.total)}
+                                          {getCurrencySymbol(selectedCurrency)}{formatAmount(summary.total)}
                                       </td>
                                   </tr>
                               ))}
