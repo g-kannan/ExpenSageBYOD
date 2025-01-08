@@ -4,12 +4,20 @@ import { useState } from 'react';
 import { useMotherDuckClientState } from '@/lib/motherduck/context/motherduckClientContext';
 import { INSERT_EXPENSE_QUERY } from '@/lib/constants/queries';
 
+const currencies = [
+    { code: 'INR', symbol: '₹' },
+    { code: 'USD', symbol: '$' },
+    { code: 'EUR', symbol: '€' },
+    { code: 'GBP', symbol: '£' }
+];
+
 interface ExpenseFormData {
     ef_month: number;
     category: string;
     customCategory: string;
     biller: string;
     amount: number;
+    currency: string;
     recurring: boolean;
     frequency: 'Monthly' | 'Quarterly' | 'Fortnightly' | 'Half Yearly' | '';
 }
@@ -39,6 +47,7 @@ export function ExpenseInputForm({ onExpenseAdded }: ExpenseInputFormProps) {
         customCategory: '',
         biller: '',
         amount: 0,
+        currency: 'INR',
         recurring: false,
         frequency: ''
     });
@@ -64,7 +73,8 @@ export function ExpenseInputForm({ onExpenseAdded }: ExpenseInputFormProps) {
                     .replace('$ef_month', month.toString())
                     .replace('$category', finalCategory)
                     .replace('$biller', formData.biller)
-                    .replace('$amount', formData.amount.toString());
+                    .replace('$amount', formData.amount.toString())
+                    .replace('$currency', formData.currency);
 
                 const result = await safeEvaluateQuery(query);
                 if (result.status !== "success") {
@@ -79,6 +89,7 @@ export function ExpenseInputForm({ onExpenseAdded }: ExpenseInputFormProps) {
                 customCategory: '',
                 biller: '',
                 amount: 0,
+                currency: 'INR',
                 recurring: false,
                 frequency: ''
             });
@@ -194,20 +205,32 @@ export function ExpenseInputForm({ onExpenseAdded }: ExpenseInputFormProps) {
                         />
                     </div>
 
-                    <div>
-                        <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-1">
-                            Amount (₹)
+                    <div className="mb-4">
+                        <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="amount">
+                            Amount
                         </label>
-                        <input
-                            type="number"
-                            id="amount"
-                            value={formData.amount || ''}
-                            onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
-                            placeholder="0.00"
-                            min="0"
-                            step="0.01"
-                        />
+                        <div className="flex gap-2">
+                            <input
+                                type="number"
+                                id="amount"
+                                value={formData.amount}
+                                onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
+                                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                required
+                            />
+                            <select
+                                id="currency"
+                                value={formData.currency}
+                                onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
+                                className="shadow border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                            >
+                                {currencies.map((currency) => (
+                                    <option key={currency.code} value={currency.code}>
+                                        {currency.code} ({currency.symbol})
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
                 </div>
 
