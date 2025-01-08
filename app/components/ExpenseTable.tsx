@@ -68,11 +68,11 @@ export function ExpenseTable({ expensesData, summaryData, loading, error }: Expe
         const maxAmount = Math.max(...summaryData.map(item => parseFloat(item.total)));
         const intensity = (amount / maxAmount);
         
-        if (intensity > 0.8) return 'bg-blue-100';
-        if (intensity > 0.6) return 'bg-blue-50';
-        if (intensity > 0.4) return 'bg-slate-50';
-        if (intensity > 0.2) return 'bg-gray-50';
-        return '';
+        if (intensity > 0.8) return 'bg-pink-200';
+        if (intensity > 0.6) return 'bg-pink-100';
+        if (intensity > 0.4) return 'bg-yellow-50';
+        if (intensity > 0.2) return 'bg-green-50';
+        return 'bg-green-100';
     };
 
     if (loading) {
@@ -197,7 +197,7 @@ export function ExpenseTable({ expensesData, summaryData, loading, error }: Expe
                                   </tr>
                               ))
                             : sortedSummaryData.map((summary, index) => (
-                                  <tr key={index} className={`${getHighlightClass(parseFloat(summary.total))} hover:bg-gray-100`}>
+                                  <tr key={index} className={`${getHighlightClass(parseFloat(summary.total))} transition-colors duration-200 hover:bg-gray-100`}>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                           {getMonthName(summary.month)}
                                       </td>
