@@ -11,7 +11,7 @@ interface ExpenseTableProps {
     error: string | null;
 }
 
-type SortField = 'month' | 'category' | 'biller' | 'amount' | 'created_ts' | 'ef_month' | 'total';
+type SortField = 'month' | 'category' | 'biller' | 'amount' | 'created_ts' | 'ef_month' | 'total' | 'currency';
 type SortDirection = 'asc' | 'desc';
 
 export function ExpenseTable({ expensesData, summaryData, loading, error }: ExpenseTableProps) {
