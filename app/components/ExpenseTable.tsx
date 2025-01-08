@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react';
-import { formatAmount, getMonthName, formatTimestamp } from '@/lib/utils/formatters';
+import { formatAmount, getMonthName, formatTimestamp, getCurrencySymbol } from '@/lib/utils/formatters';
 import { ExportButton } from './ExportButton';
 
 interface ExpenseTableProps {
@@ -186,7 +186,7 @@ export function ExpenseTable({ expensesData, summaryData, loading, error }: Expe
                                           {expense.biller}
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                          ₹{formatAmount(expense.amount)}
+                                          {getCurrencySymbol(expense.currency)}{formatAmount(expense.amount)}
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                                           {expense.currency}
@@ -202,7 +202,7 @@ export function ExpenseTable({ expensesData, summaryData, loading, error }: Expe
                                           {getMonthName(summary.month)}
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                          ₹{formatAmount(summary.total)}
+                                          {getCurrencySymbol('INR')}{formatAmount(summary.total)}
                                       </td>
                                   </tr>
                               ))}
