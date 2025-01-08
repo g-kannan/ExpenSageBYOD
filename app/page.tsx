@@ -6,6 +6,7 @@ import { DatabaseSetup } from "./components/DatabaseSetup";
 import { ExpenseInputForm } from "./components/ExpenseInputForm";
 import { ExpenseTable } from "./components/ExpenseTable";
 import { StatsPanel } from "./components/StatsPanel";
+import { TokenInput } from "./components/TokenInput";
 import { useFetchExpensesData } from "@/lib/hooks/useFetchExpensesData";
 
 function ExpensageApp() {
@@ -68,23 +69,10 @@ function ExpensageApp() {
                 </div>
                 
                 {/* Token Input Section */}
-                <div className="bg-white rounded-xl shadow-lg p-6">
-                    <div className="mb-4 text-sm text-gray-600">
-                        <p>Don't have a MotherDuck account? <a href="https://app.motherduck.com/?auth_flow=signup" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline">Sign up here</a> to get your token.</p>
-                    </div>
-                    <label htmlFor="token" className="block text-sm font-semibold text-gray-700 mb-2">MotherDuck Token</label>
-                    <input
-                        type="password"
-                        id="token"
-                        value={tokenInput}
-                        onChange={(e) => {
-                            setTokenInput(e.target.value);
-                            setToken(e.target.value);
-                        }}
-                        className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 text-gray-900 bg-white"
-                        placeholder="Enter your MotherDuck token"
-                    />
-                </div>
+                <TokenInput tokenInput={tokenInput} onTokenChange={(token) => {
+                    setTokenInput(token);
+                    setToken(token);
+                }} />
 
                 {/* Database Setup Component */}
                 <DatabaseSetup tokenInput={tokenInput} />
