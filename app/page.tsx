@@ -70,6 +70,10 @@ function ExpensageApp() {
         }
     };
 
+    const handleButtonClick = () => {
+        handleFetchExpensesData();
+    };
+
     return (
         <div className="min-h-screen bg-gray-50">
             <div className="max-w-6xl mx-auto p-6 space-y-8">
@@ -99,7 +103,7 @@ function ExpensageApp() {
                 {/* Refresh Data Button */}
                 <div className="flex justify-end bg-white rounded-xl shadow-lg p-4">
                     <button 
-                        onClick={handleFetchExpensesData} 
+                        onClick={handleButtonClick} 
                         className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                         disabled={loading}
                     >
