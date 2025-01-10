@@ -20,9 +20,10 @@ export const useFetchExpensesData = () => {
         }
     }, [safeEvaluateQuery]);
 
-    const fetchSummaryData = useCallback(async () => {
+    const fetchSummaryData = useCallback(async (currency: string = 'INR') => {
         try {
-            const result = await safeEvaluateQuery(SUMMARY_QUERY_STRING);
+            const query = SUMMARY_QUERY_STRING.replace('$currency', currency);
+            const result = await safeEvaluateQuery(query);
             if (result.status !== "success") {
                 throw new Error(result.err.message);
             }

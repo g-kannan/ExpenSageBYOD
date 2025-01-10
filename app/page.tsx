@@ -19,7 +19,7 @@ function ExpensageApp() {
     const { setToken } = useMotherDuckClientState();
     const { fetchExpensesData, fetchSummaryData, fetchStatsData, error: fetchError } = useFetchExpensesData();
 
-    const handleFetchExpensesData = async () => {
+    const handleFetchExpensesData = async (currency: string = 'INR') => {
         if (!tokenInput) {
             setError('Please enter a MotherDuck token');
             return;
@@ -32,7 +32,7 @@ function ExpensageApp() {
             
             const [regularData, summaryData, statsData] = await Promise.all([
                 fetchExpensesData(),
-                fetchSummaryData(),
+                fetchSummaryData(currency),
                 fetchStatsData()
             ]);
 
@@ -55,6 +55,23 @@ function ExpensageApp() {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleCurrencyChange = async (currency: string) => {
+        try {
+            setLoading(true);
+            const summaryData = await fetchSummaryData(currency);
+            setSummaryData(summaryData ? [...summaryData] : []);
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
+            setError(`Failed to fetch summary data: ${errorMessage}`);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleButtonClick = () => {
+        handleFetchExpensesData();
     };
 
     return (
@@ -86,7 +103,7 @@ function ExpensageApp() {
                 {/* Refresh Data Button */}
                 <div className="flex justify-end bg-white rounded-xl shadow-lg p-4">
                     <button 
-                        onClick={handleFetchExpensesData} 
+                        onClick={handleButtonClick} 
                         className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                         disabled={loading}
                     >
@@ -100,6 +117,7 @@ function ExpensageApp() {
                     summaryData={summaryData}
                     loading={loading}
                     error={error || fetchError}
+                    onCurrencyChange={handleCurrencyChange}
                 />
             </div>
         </div>

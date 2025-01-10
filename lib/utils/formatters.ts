@@ -10,6 +10,17 @@ export const formatAmount = (amount: number): string => {
     }).format(amount);
 };
 
+const currencySymbols: Record<string, string> = {
+    'INR': '₹',
+    'USD': '$',
+    'EUR': '€',
+    'GBP': '£'
+};
+
+export const getCurrencySymbol = (currencyCode: string): string => {
+    return currencySymbols[currencyCode] || currencyCode;
+};
+
 export const formatTimestamp = (timestamp: string): string => {
     const date = new Date(timestamp);
     return new Intl.DateTimeFormat('en-IN', {
